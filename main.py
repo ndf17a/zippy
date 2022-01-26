@@ -1,17 +1,27 @@
+import shutil
 import zipfile
 import os
 import subprocess
 import re
+from os.path import exists
 
 rootPath = "C:/Users/ndf17a/Desktop/root"
 
 
 def unzip(zipped_files):
+    remake = False
     for zip_file in zipped_files:
         mkfile = (zip_file.replace(".zip", "-unzipped"))
+        if exists(mkfile):
+            shutil.rmtree(mkfile)
+            remake = True
+
         os.mkdir(mkfile)
         with zipfile.ZipFile(zip_file, 'r') as zip_ref:
             zip_ref.extractall(mkfile)
+
+    if remake:
+        print("Deleted and Re-Unzipped some files that already existed")
 
 
 def find_files(filename, search_path):
@@ -35,14 +45,15 @@ def files_in_dir(path):
 # mvn -f path/pom.xml test
 def runMvn(mvnPaths):
     for path in mvnPaths:
-        authorID = re.findall("-\D{3}\d{2}\D", path)[0].replace('-', '') if re.findall("-\D{3}\d{2}\D", path) else path
+        authorID = re.findall("-\D{3}\d{2}\D", path)[0].replace('-', '') if re.findall("-\D{3}\d{2}\D", path) else (
+            "AuthorID not found: ", path)
         list_files = subprocess.run(['mvn', '-f', path, 'clean', 'test'],
                                     shell=True,
                                     encoding='UTF-8',
                                     stdout=subprocess.PIPE)
         output = list_files.stdout
         print("---------------------------------------\n"
-              + authorID)
+              + "Author: ", authorID)
         if "[INFO] BUILD FAILURE" in output:
             print("Compilation error mvn test output:\n"
                   + "/////////////////////////////////////////////////////////////////////\n"
@@ -60,11 +71,12 @@ def runMvn(mvnPaths):
             testSkips = int(testResults[3])
 
             print(output[indexStart:indexEnd])
-            print("pass" if testRuns and testFails == 0 and testErrors == 0 and testSkips == 0 else "fail")
+            result = "Passed" if testRuns and testFails == 0 and testErrors == 0 and testSkips == 0 else "Failed"
+            print("Result:", result)
 
 
 if __name__ == '__main__':
     unzip(files_in_dir(rootPath))
     paths = find_files('pom.xml', rootPath)
-    print(paths)
+    print("Dirs to be tested:", paths)
     runMvn(paths)
