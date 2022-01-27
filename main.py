@@ -1,11 +1,37 @@
 import shutil
+import urllib
 import zipfile
 import os
 import subprocess
 import re
+from html.parser import HTMLParser
+from io import StringIO
 from os.path import exists
+import requests
 
-rootPath = "C:/Users/ndf17a/Desktop/root"
+
+class MLStripper(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.reset()
+        self.strict = False
+        self.convert_charrefs = True
+        self.text = StringIO()
+
+    def handle_data(self, d):
+        self.text.write(d)
+
+    def get_data(self):
+        return self.text.getvalue()
+
+
+def strip_tags(html):
+    s = MLStripper()
+    s.feed(html)
+    return s.get_data()
+
+
+rootPath = "C:/Users/Nicolas/Desktop/root"
 
 
 def unzip(zipped_files):
@@ -76,7 +102,36 @@ def runMvn(mvnPaths):
 
 
 if __name__ == '__main__':
-    unzip(files_in_dir(rootPath))
-    paths = find_files('pom.xml', rootPath)
-    print("Dirs to be tested:", paths)
-    runMvn(paths)
+    aUrl = "https://acu.instructure.com/api/v1/courses/3425464/assignments?per_page=20"
+    headers = {'Authorization': 'Bearer 1~OEjTUpaq01Xh0jxbu0uTlpaAm3Smhcyh6pVuUcLqPEtUpoYvnlvDxdEBsaGxgzjJ'}
+    a = requests.get(aUrl, headers=headers)
+    assignmentName = "Week 01 Check - Java Hello World"
+
+    for j in a.json():
+        jname = strip_tags(j['name'])
+        jid = j['id']
+        if jname == assignmentName:
+            print(jname, jid)
+            sUrl = "https://acu.instructure.com/api/v1/courses/3425464/assignments/"+str(jid)+"/submissions?per_page=20"
+            for i in requests.get(sUrl, headers=headers).json():
+                if 'attachments' in i:
+                    if 'url' in i['attachments'][0]:
+                        print(i['attachments'][0]['url'])
+                    else:
+                        downloadUrl = i['attachments'][0]
+                        print(downloadUrl)
+                        urllib.
+                        urllib.urlretrieve(downloadUrl, "mp3.mp3")
+                        r = requests.get(downloadUrl, allow_redirects=True, )
+                        print(r.json())
+
+                else:
+                    print(i)
+                    #print(i['attachments'])
+                    #print(i['attachments'][0]['url'])
+                    # open('facebook.ico', 'wb').write(r.content)
+
+    # unzip(files_in_dir(rootPath))
+    # paths = find_files('pom.xml', rootPath)
+    # print("Dirs to be tested:", paths)
+    # runMvn(paths)
