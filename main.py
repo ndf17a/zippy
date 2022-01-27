@@ -1,5 +1,4 @@
 import shutil
-import urllib
 import zipfile
 import os
 import subprocess
@@ -8,6 +7,22 @@ from html.parser import HTMLParser
 from io import StringIO
 from os.path import exists
 import requests
+import urllib.request
+
+rootPath = "C:/Users/Nicolas/Desktop/root"
+headers = {'Authorization': 'Bearer 1~OEjTUpaq01Xh0jxbu0uTlpaAm3Smhcyh6pVuUcLqPEtUpoYvnlvDxdEBsaGxgzjJ'}
+
+class color:
+   PURPLE = '\033[95m'
+   CYAN = '\033[96m'
+   DARKCYAN = '\033[36m'
+   BLUE = '\033[94m'
+   GREEN = '\033[92m'
+   YELLOW = '\033[93m'
+   RED = '\033[91m'
+   BOLD = '\033[1m'
+   UNDERLINE = '\033[4m'
+   END = '\033[0m'
 
 
 class MLStripper(HTMLParser):
@@ -31,7 +46,38 @@ def strip_tags(html):
     return s.get_data()
 
 
-rootPath = "C:/Users/Nicolas/Desktop/root"
+def downloadzips(code, a):
+
+     #= "Week 03 check - Dynamic Unit Test"
+    aCount = 0
+    for j in a.json():
+        jname = strip_tags(j['name'])
+        jid = j['id']
+        if str(aCount) == code:
+            print(color.YELLOW + "Downloading Assignments from '" + jname, str(jid) + color.END)
+            sUrl = "https://acu.instructure.com/api/v1/courses/3425464/assignments/" + str(jid) + "/submissions?per_page=100"
+            count = 0
+            for i in requests.get(sUrl, headers=headers).json():
+                if 'attachments' in i:
+                    att = i['attachments'][0]
+                    if 'url' in att:
+                        downloadUrl = att['url']
+                        displayName = att['display_name']
+                        r = requests.get(downloadUrl, allow_redirects=True, headers=headers)
+                        openPath = rootPath + "/" + str(count) + "_" + displayName
+                        if os.path.exists(openPath):
+                            print(str(count) + "_" + displayName + " already exists")
+                        else:
+                            with open(openPath, 'wb') as f:
+                                f.write(r.content)
+                            print(str(count) + "_" + displayName + " downloaded")
+
+                        count += 1
+                    else:
+                        print("No url")
+                else:
+                    print("No submission")
+        aCount+=1
 
 
 def unzip(zipped_files):
@@ -47,7 +93,7 @@ def unzip(zipped_files):
             zip_ref.extractall(mkfile)
 
     if remake:
-        print("Deleted and Re-Unzipped some files that already existed")
+        print(color.YELLOW + "Deleted and Re-Unzipped some files that already existed" + color.END)
 
 
 def find_files(filename, search_path):
@@ -68,10 +114,12 @@ def files_in_dir(path):
     return file_names
 
 
-# mvn -f path/pom.xml test
+# mvn -f path/pom.xml clean test
 def runMvn(mvnPaths):
+    passed = 0
+    failed = 0
     for path in mvnPaths:
-        authorID = re.findall("-\D{3}\d{2}\D", path)[0].replace('-', '') if re.findall("-\D{3}\d{2}\D", path) else (
+        authorID = re.findall("\D{3}\d{2}\D", path)[0].replace("/","") if re.findall("\D{3}\d{2}\D", path) else (
             "AuthorID not found: ", path)
         list_files = subprocess.run(['mvn', '-f', path, 'clean', 'test'],
                                     shell=True,
@@ -81,7 +129,7 @@ def runMvn(mvnPaths):
         print("---------------------------------------\n"
               + "Author: ", authorID)
         if "[INFO] BUILD FAILURE" in output:
-            print("Compilation error mvn test output:\n"
+            print(color.YELLOW + "Compilation error mvn test output:" + color.END + "\n"
                   + "/////////////////////////////////////////////////////////////////////\n"
                   + output
                   + "\n/////////////////////////////////////////////////////////////////////")
@@ -97,41 +145,39 @@ def runMvn(mvnPaths):
             testSkips = int(testResults[3])
 
             print(output[indexStart:indexEnd])
-            result = "Passed" if testRuns and testFails == 0 and testErrors == 0 and testSkips == 0 else "Failed"
-            print("Result:", result)
+            result = color.GREEN + "Passed" + color.END if testRuns and testFails == 0 and testErrors == 0 and testSkips == 0 else color.RED + "Failed" + color.RED
+            print("Result:",  result)
 
+            if "Passed" in result:
+                passed+=1
+            if "Failed" in result:
+                failed+=1
+
+    print("\n")
+    print("===============")
+    print("|  Passed:", passed, "|")
+    print("|  Failed:", failed, " |")
+    print("===============")
+
+def outputAssignments():
+    count = 0
+    aUrl = "https://acu.instructure.com/api/v1/courses/3425464/assignments?per_page=100"
+    r = requests.get(aUrl, headers=headers)
+
+    for j in r.json():
+        print(color.PURPLE + str(count) + color.END + ": " + strip_tags(j['name']))
+        count+=1
+
+    return r;
 
 if __name__ == '__main__':
-    aUrl = "https://acu.instructure.com/api/v1/courses/3425464/assignments?per_page=20"
-    headers = {'Authorization': 'Bearer 1~OEjTUpaq01Xh0jxbu0uTlpaAm3Smhcyh6pVuUcLqPEtUpoYvnlvDxdEBsaGxgzjJ'}
-    a = requests.get(aUrl, headers=headers)
-    assignmentName = "Week 01 Check - Java Hello World"
 
-    for j in a.json():
-        jname = strip_tags(j['name'])
-        jid = j['id']
-        if jname == assignmentName:
-            print(jname, jid)
-            sUrl = "https://acu.instructure.com/api/v1/courses/3425464/assignments/"+str(jid)+"/submissions?per_page=20"
-            for i in requests.get(sUrl, headers=headers).json():
-                if 'attachments' in i:
-                    if 'url' in i['attachments'][0]:
-                        print(i['attachments'][0]['url'])
-                    else:
-                        downloadUrl = i['attachments'][0]
-                        print(downloadUrl)
-                        urllib.
-                        urllib.urlretrieve(downloadUrl, "mp3.mp3")
-                        r = requests.get(downloadUrl, allow_redirects=True, )
-                        print(r.json())
 
-                else:
-                    print(i)
-                    #print(i['attachments'])
-                    #print(i['attachments'][0]['url'])
-                    # open('facebook.ico', 'wb').write(r.content)
-
-    # unzip(files_in_dir(rootPath))
-    # paths = find_files('pom.xml', rootPath)
-    # print("Dirs to be tested:", paths)
-    # runMvn(paths)
+    r = outputAssignments()
+    code = input(color.YELLOW + '\n\nChoose an Assignments number?\n' + color.CYAN + 'i.e. enter 18 for "Week 03 check - Dynamic Unit Test"\n' + color.END)
+    downloadzips(code, r)
+    unzip(files_in_dir(rootPath))
+    paths = find_files('pom.xml', rootPath)
+    print(color.YELLOW + "Projects to be tested: " + color.END)
+    print(paths)
+    runMvn(paths)
