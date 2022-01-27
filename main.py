@@ -118,6 +118,10 @@ def files_in_dir(path):
 def runMvn(mvnPaths):
     passed = 0
     failed = 0
+    u = "https://acu.instructure.com/api/v1/courses/3425464/enrollments"
+    userRequest = requests.get(u, headers=headers)
+
+
     for path in mvnPaths:
         authorID = re.findall("\D{3}\d{2}\D", path)[0].replace("/","") if re.findall("\D{3}\d{2}\D", path) else (
             "AuthorID not found: ", path)
@@ -126,8 +130,13 @@ def runMvn(mvnPaths):
                                     encoding='UTF-8',
                                     stdout=subprocess.PIPE)
         output = list_files.stdout
+
+        authorName = ""
+        for i in userRequest.json():
+            if i['user']['login_id'] == authorID:
+                authorName = i['user']['name']
         print("---------------------------------------\n"
-              + "Author: ", authorID)
+              + "Author:", authorName)
         if "[INFO] BUILD FAILURE" in output:
             print(color.YELLOW + "Compilation error mvn test output:" + color.END + "\n"
                   + "/////////////////////////////////////////////////////////////////////\n"
@@ -173,10 +182,11 @@ def outputAssignments():
 if __name__ == '__main__':
 
 
-    r = outputAssignments()
-    code = input(color.YELLOW + '\n\nChoose an Assignments number?\n' + color.CYAN + 'i.e. enter 18 for "Week 03 check - Dynamic Unit Test"\n' + color.END)
-    downloadzips(code, r)
-    unzip(files_in_dir(rootPath))
+
+    #r = outputAssignments()
+    #code = input(color.YELLOW + '\n\nChoose an Assignments number?\n' + color.CYAN + 'i.e. enter 18 for "Week 03 check - Dynamic Unit Test"\n' + color.END)
+    #downloadzips(code, r)
+    #unzip(files_in_dir(rootPath))
     paths = find_files('pom.xml', rootPath)
     print(color.YELLOW + "Projects to be tested: " + color.END)
     print(paths)
