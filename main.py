@@ -45,6 +45,13 @@ def strip_tags(html):
     s.feed(html)
     return s.get_data()
 
+def checkIfDownloads(subs):
+    for i in subs:
+        if not i['submitted_at'] is None:
+            if 'attachments' in i:
+                attach = i['attachments'][0]
+                if 'url' in attach:
+                    return True
 
 def downloadzips(code, a):
 
@@ -54,31 +61,32 @@ def downloadzips(code, a):
         jname = strip_tags(j['name'])
         jid = j['id']
         if str(aCount) == code:
-            print(color.YELLOW + "Downloading Assignments from '" + jname, str(jid) + color.END)
             sUrl = "https://acu.instructure.com/api/v1/courses/3425464/assignments/" + str(jid) + "/submissions?per_page=100"
             count = 0
-            for i in requests.get(sUrl, headers=headers).json():
-                if 'attachments' in i:
-                    att = i['attachments'][0]
-                    if 'url' in att:
-                        downloadUrl = att['url']
-                        displayName = att['display_name']
-                        r = requests.get(downloadUrl, allow_redirects=True, headers=headers)
-                        openPath = rootPath + "/" + str(count) + "_" + displayName
-                        if os.path.exists(openPath):
-                            print(str(count) + "_" + displayName + " already exists")
-                        else:
-                            with open(openPath, 'wb') as f:
-                                f.write(r.content)
-                            print(str(count) + "_" + displayName + " downloaded")
-
-                        count += 1
-                    else:
-                        print("No url")
-                else:
+            subR = requests.get(sUrl, headers=headers).json()
+            if not checkIfDownloads(subR):
+                print(color.YELLOW + "No Downloads in this assignment!" + color.END)
+                return False
+            print(color.YELLOW + "Downloading Assignments from '" + jname, str(jid) + color.END)
+            for i in subR:
+                if i['submitted_at'] is None:
                     print("No submission")
-        aCount+=1
+                else:
+                    att = i['attachments'][0]
+                    downloadUrl = att['url']
+                    displayName = att['display_name']
+                    downloadR = requests.get(downloadUrl, allow_redirects=True, headers=headers)
+                    openPath = rootPath + "/" + str(count) + "_" + displayName
+                    if os.path.exists(openPath):
+                        print(str(count) + "_" + displayName + " already exists")
+                    else:
+                        with open(openPath, 'wb') as f:
+                            f.write(downloadR.content)
+                        print(str(count) + "_" + displayName + " downloaded")
 
+                count += 1
+        aCount+=1
+    return True
 
 def unzip(zipped_files):
     remake = False
@@ -171,23 +179,49 @@ def runMvn(mvnPaths):
 def outputAssignments():
     count = 0
     aUrl = "https://acu.instructure.com/api/v1/courses/3425464/assignments?per_page=100"
-    r = requests.get(aUrl, headers=headers)
+    submissionsR = requests.get(aUrl, headers=headers)
 
-    for j in r.json():
-        print(color.PURPLE + str(count) + color.END + ": " + strip_tags(j['name']))
+    for j in submissionsR.json():
+        cid = j['id']
+        sub_type = []
+        sub_type = j['submission_types']
+        if count < 10:
+            space = " "
+        else:
+            space = ""
+
+        if "check" in j['name'].lower():
+            output = color.PURPLE + str(count) + color.END + ": " + color.YELLOW + space + strip_tags(j['name'] + color.END)
+        else:
+            output = color.PURPLE + str(count) + color.END+ ": " + space + strip_tags(j['name'])
+
+        if not sub_type[0] == "none":
+            output += ":"
+            typeCount = 0
+            for type in sub_type:
+                if type == "online_quiz":
+                    output = output + " quiz"
+                if type == "online_text_entry":
+                    output = output + " text-entry"
+                if type == "online_upload":
+                    output = output + " upload"
+                if typeCount < len(sub_type)-1:
+                    output = output + ","
+                typeCount += 1
+
+        print(output)
         count+=1
 
-    return r;
+    return submissionsR;
 
 if __name__ == '__main__':
 
+    r = outputAssignments()
+    assignmentCode = input(color.YELLOW + '\n\nChoose an Assignments number?\n' + color.CYAN + 'i.e. enter 18 for "Week 03 check - Dynamic Unit Test"\n' + color.END)
 
-
-    #r = outputAssignments()
-    #code = input(color.YELLOW + '\n\nChoose an Assignments number?\n' + color.CYAN + 'i.e. enter 18 for "Week 03 check - Dynamic Unit Test"\n' + color.END)
-    #downloadzips(code, r)
-    #unzip(files_in_dir(rootPath))
-    paths = find_files('pom.xml', rootPath)
-    print(color.YELLOW + "Projects to be tested: " + color.END)
-    print(paths)
-    runMvn(paths)
+    if downloadzips(assignmentCode, r):
+        unzip(files_in_dir(rootPath))
+        paths = find_files('pom.xml', rootPath)
+        print(color.YELLOW + "Projects to be tested: " + color.END)
+        print(paths)
+        runMvn(paths)
